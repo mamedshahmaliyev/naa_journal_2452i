@@ -181,6 +181,40 @@ app.include_router(subjectRouter)
 
 
 
+
+#################### JOURNAL ROUTES ####################
+journalRouter = APIRouter(prefix="/journals", tags=["Journals"])
+
+from schemas.journal_input_output import *
+from services.journals import *
+
+@journalRouter.post("/add")
+async def journals_add(inputData: JournalInputAdd):
+    return {'id': Journals.add(inputData=inputData)}
+
+@journalRouter.put("/update/{id}")
+async def journals_update(id: int, inputData: JournalInputUpdate):
+    return Journals.update(id=id, inputData=inputData)
+
+@journalRouter.get("/search")
+async def journals_search(
+            id: int|None = Query(None, ge=0),
+            kafedra: str|None = None,
+            student_group: str|None = Query(None, description="Student group id or code"),
+            start_date: date|None = None,
+            end_date: date|None = None,
+
+            limit: int|None = Query(10, gt=0),
+            offset: int|None = Query(0, ge=0)
+        ) -> list[JournalOutputSearch]:
+    return Journals.search(**locals())
+
+
+app.include_router(journalRouter)   
+
+
+
+
 #################### DATABASE ROUTES ####################
 
 dummyDataRouter = APIRouter(tags=["Database"])
@@ -193,6 +227,7 @@ async def populate_dummy_data():
     Students.addStudentGroupDummyData()
     Teachers.addTeacherDummyData()
     Subjects.addSubjectDummyData()
+    Journals.addJournalDummyData()
     
     return True
 

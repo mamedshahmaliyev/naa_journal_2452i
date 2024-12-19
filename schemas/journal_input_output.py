@@ -17,8 +17,8 @@ class JournalInputUpdate(BaseModel):
 class JournalOutputSearch(BaseModel):
     id: int
     kafedra: str
-    student_group_id: int
-    start_date: date
-    end_date: date
+    student_group: str
+    start_date: date|None
+    end_date: date|None
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime|None

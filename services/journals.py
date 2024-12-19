@@ -1,15 +1,14 @@
 from helpers.db import DB
 
-from schemas.subject_input_output import *
-from models.subject import Subject
+from schemas.journal_input_output import *
+from models.journal import Journal
 
-class Subjects:
+class Journals:
     
     @classmethod
-    def add(cls, inputData: SubjectInputAdd) -> int:
-        '''Add a subject to the database and return the id of added item'''
+    def add(cls, inputData: JournalInputAdd) -> int:
+        '''Add a journal item to the database and return the id of added item'''
         
-        # generate dynamic query using list comprehension
         fields = ', '.join(inputData.model_dump().keys())
         values = ', '.join(['?']*len(inputData.model_dump().keys()))
         sql = f'INSERT INTO subjects ({fields}) values ({values})'
@@ -17,13 +16,13 @@ class Subjects:
         return DB.execute(sql, tuple(inputData.model_dump().values()))    
     
     @classmethod
-    def update(cls, id: int, inputData: SubjectInputUpdate) -> Subject:
-        '''Update subject by id, update only specified fields'''
+    def update(cls, id: int, inputData: JournalInputUpdate) -> Journal:
+        '''Update journal by id, update only specified fields'''
         
         updateKeyValues = {field: value for field, value in inputData.model_dump().items() if field in inputData.model_fields_set}
                 
         if updateKeyValues:
-            updateSql = 'update subjects set ' + ', '.join([f'{key} = ?' for key in updateKeyValues.keys()]) + ', updated_at=current_timestamp where id = ?'
+            updateSql = 'update journals set ' + ', '.join([f'{key} = ?' for key in updateKeyValues.keys()]) + ', updated_at=current_timestamp where id = ?'
             print(updateSql, (*updateKeyValues.values(), id))
             DB.execute(updateSql, (*updateKeyValues.values(), id))
             
@@ -34,40 +33,42 @@ class Subjects:
     def search(
                 cls, 
                 id: int|None = None,
-                name: str|None = None,
-                code: str|None = None,
-                hours_from: int|None = None,
-                hours_to: int|None = None,
-                
-                # @todo add credits filter as well
+                kafedra: str|None = None,
+                student_group: str|None = None,
+                start_date: date|None = None,
+                end_date: date|None = None,
                 
                 limit: int = 10,
                 offset: int = 0
-            ) -> list[SubjectOutputSearch]:
-        '''Search subjects based on the provided filters'''
+            ) -> list[JournalOutputSearch]:
+        '''Search journals based on the provided filters'''
         
-        sql = 'SELECT * FROM subjects '
+        sql = """
+                SELECT j.*, sg.code || ' [id: '|| sg.id || ']' as student_group  
+                FROM journals j 
+                left join student_groups sg on sg.id = j.student_group_id
+                """
         
         where, values = [], {}
         if id is not None:
-            where.append("id = :id")
-            values = {'id': f'{id}'}
+            where.append("j.id = :id")
+            values['id']=id
             
-        if code is not None:
-            where.append("(code = :name)")
-            values = {'code': code}
-            
-        if name is not None:
-            where.append("(name like :name OR code like :name)")
-            values = {'name': f'%{name}%'}
+        if kafedra is not None:
+            where.append("(kafedra = :kafedra)")
+            values['kafedra']=f'%{kafedra}%'
         
-        if hours_from is not None:
-            where.append("hours >= :hours_from")
-            values['hours_from'] = hours_from
+        if student_group is not None:
+            where.append("(student_group_id = :student_group or sg.code = :student_group)")
+            values['student_group']=student_group
         
-        if hours_to is not None:
-            where.append("hours <= :hours_to")
-            values['hours_to'] = hours_to
+        if start_date is not None:
+            where.append("start_date = :start_date")
+            values['start_date']=start_date
+        
+        if end_date is not None:
+            where.append("end_date = :end_date")
+            values['end_date']=end_date
                 
         sql += ' WHERE ' + ' AND '.join(where) if where else ''
         sql += f' LIMIT {limit} OFFSET {offset}'
@@ -76,10 +77,9 @@ class Subjects:
         return DB.select(sql, values)
     
     @classmethod
-    def addSubjectDummyData(cls):
-        DB.execute(f'''INSERT INTO subjects (id, name, code, hours, credits) VALUES 
-                    (1, 'Object Oriented Programming', 'OOP', 60, 5),
-                    (2, 'Programming Basics - 2', 'PB2', 45, null)
+    def addJournalDummyData(cls):
+        DB.execute(f'''INSERT INTO journals (id, kafedra, student_group_id, start_date, end_date) VALUES 
+                    (1, 'Aerokosmik', 1, '2024-09-15', '2024-12-31')
                     ON CONFLICT DO NOTHING
                 ''')
     
